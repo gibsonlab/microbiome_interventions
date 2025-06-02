@@ -61,10 +61,12 @@ y2<-ts@series[["m2"]]@values
 out<-rmse(y1, y2)
 print(out)
 
-
 # only calculate error for the taxa-timepoints that have nonzero reads like we do in the analysis in our paper
+# technically we should not compare to "ground truth" at timepoints that are interpolated either but havent done this yet
+# we should remove the first time point as well
+
 y3<-y2
-y3[y3 == log10(eps)] <- NA #this value should equal what is added before taking log10
+y3[y3 == log10(eps)] <- NA #mask values that originally had zero reads 
 out<-rmse(y1, y3)
 print(out)
 
