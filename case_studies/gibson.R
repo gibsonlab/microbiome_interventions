@@ -1,12 +1,18 @@
+#install.packages("devtools")
+#install.packages("tidyverse")
+#devtools::install_github("gathanei/xyz")
+#devtools::install_github("krisrs1128/mbtransfer")
+
+
 library(mbtransfer)
 library(tidyverse)
 library(glue)
 
 
-subject <- read_csv("_data/healthy/subject.csv")
-interventions <- read_csv("_data/healthy/interventions.csv") |> column_to_rownames("sample")
-reads <- read_csv("_data/healthy/reads.csv") |> column_to_rownames("sample")
-samples <- read_csv("_data/healthy/samples.csv")
+subject <- read_csv("../_data/healthy/subject.csv")
+interventions <- read_csv("../_data/healthy/interventions.csv") |> column_to_rownames("sample")
+reads <- read_csv("../_data/healthy/reads.csv") |> column_to_rownames("sample")
+samples <- read_csv("../_data/healthy/samples.csv")
 
 eps<-1e-4
 
@@ -56,8 +62,8 @@ rmse_m5 <- df %>%
 
 print(rmse_m5)
 
-y1<-ts_preds[["hold-out-m2"]]@series[["m2"]]@values
-y2<-ts@series[["m2"]]@values
+y1<-ts_preds[["hold-out-m5"]]@series[["m5"]]@values
+y2<-ts@series[["m5"]]@values
 out<-rmse(y1, y2)
 print(out)
 
@@ -69,4 +75,18 @@ y3<-y2
 y3[y3 == log10(eps)] <- NA #mask values that originally had zero reads 
 out<-rmse(y1, y3)
 print(out)
+
+
+output_folder <- '../_outputs'
+
+write.csv(ts@series[["m5"]]@values, paste(output_folder,"/m5_ground_truth.csv",sep=''))
+write.csv(ts@series[["m4"]]@values, paste(output_folder,"/m4_ground_truth.csv",sep=''))
+write.csv(ts@series[["m3"]]@values, paste(output_folder,"/m3_ground_truth.csv",sep=''))
+write.csv(ts@series[["m2"]]@values, paste(output_folder,"/m2_ground_truth.csv",sep=''))
+
+write.csv(ts_preds[["hold-out-m5"]]@series[["m5"]]@values, paste(output_folder,"/m5_forecast.csv",sep=''))
+write.csv(ts_preds[["hold-out-m4"]]@series[["m4"]]@values, paste(output_folder,"/m4_forecast.csv",sep=''))
+write.csv(ts_preds[["hold-out-m3"]]@series[["m3"]]@values, paste(output_folder,"/m3_forecast.csv",sep=''))
+write.csv(ts_preds[["hold-out-m2"]]@series[["m2"]]@values, paste(output_folder,"/m2_forecast.csv",sep=''))
+
 
