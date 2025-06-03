@@ -46,8 +46,11 @@ ts_preds[["hold-out-m3"]] <- predict(fits[["hold-out-m3"]], ts_missing[c(2)])
 fits[["hold-out-m2"]] <- mbtransfer(ts[c(2:4)], P = 2, Q = 2)
 ts_preds[["hold-out-m2"]] <- predict(fits[["hold-out-m2"]], ts_missing[c(1)])
 
+rmse <- function(actual, predicted) {
+  sqrt(mean((actual - predicted)^2, na.rm = TRUE))
+}
 
-# check forecasting errors
+# check forecasting error example 
 y1<-ts_preds[["hold-out-m5"]]@series[["m5"]]@values
 y2<-ts@series[["m5"]]@values
 out<-rmse(y1, y2)
