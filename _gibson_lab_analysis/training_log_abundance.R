@@ -89,7 +89,7 @@ print(out)
 ## 5
 
 fits[["hold-out-m5"]] <- mbtransfer(ts[c(1:3)], P = 2, Q = 2)
-ts_preds[["hold-out-m5"]] <- predict(fits[["hold-out-m5"]], ts_missing[c(4)]) ## models trains but forecast crashes
+ts_preds[["hold-out-m5"]] <- predict(fits[["hold-out-m5"]], ts_missing[c(4)]) 
 
 y_predict<-ts_preds[["hold-out-m5"]]@series[["m5"]]@values
 y_truth<-ts@series[["m5"]]@values
