@@ -3,7 +3,6 @@
 #devtools::install_github("gathanei/xyz")
 #devtools::install_github("krisrs1128/mbtransfer", force=TRUE)
 
-
 library(tidyverse)
 library(glue)
 library(mbtransfer)
@@ -11,10 +10,7 @@ library(mbtransfer)
 eps<-1e-8
 
 rmse <- function(actual, predicted) {sqrt(mean((actual - predicted)^2, na.rm = TRUE))}
-
 arcsinh <- function(x){log(x+sqrt(x^2+1))}
-#sinh <- function(x){(1-sinh(-2*x))/(2*sinh(-x))}
-
 
 rmse_vec <- function(actual, predicted) {
   squared_errors <- (actual - predicted)^2
@@ -27,8 +23,7 @@ reads <- read_csv("../_data/healthy/reads.csv") |> column_to_rownames("sample")
 samples <- read_csv("../_data/healthy/samples.csv")
 
 R <- as.matrix(reads)
-R <- R / rowSums(R) *100000 #normalize read depth to a constant
-R <- arcsinh(R) # arcsinh transform
+R <- R / rowSums(R) * 100000
 min(R)
 max(R)
 
@@ -62,11 +57,11 @@ y_truth_reads<-ts_reads@series[["m5"]]@values
 nr <- nrow(y_truth_reads)
 y_truth_reads[1:nr, c(12:13, 15, 17, 19:20, 26:27, 34, 40:41, 48:49, 55:56)] <- 0 # interpolated columns ro be removed from analysis here - in the handoff youn deals with this directly
 
-y_predict_transformed <-sinh(y_predict)
+y_predict_transformed <-y_predict
 y_predict_transformed[y_predict_transformed<0] <-0
 
 y_predict_rel <- y_predict_transformed / colSums(y_predict_transformed)
-y_truth_rel<-sinh(y_truth)/colSums(sinh(y_truth))
+y_truth_rel<-(y_truth)/colSums((y_truth))
 
 any(y_predict_rel<0)
 sum(y_predict_rel<0)
@@ -99,11 +94,11 @@ y_predict<-ts_preds[["hold-out-m5"]]@series[["m5"]]@values
 y_truth<-ts@series[["m5"]]@values
 y_truth_reads<-ts_reads@series[["m5"]]@values
 
-y_predict_transformed <-sinh(y_predict)
+y_predict_transformed <-(y_predict)
 y_predict_transformed[y_predict_transformed<0] <-0
 y_predict_rel <- y_predict_transformed / colSums(y_predict_transformed)
 
-y_truth_rel<-sinh(y_truth)/colSums(sinh(y_truth))
+y_truth_rel<-(y_truth)/colSums((y_truth))
 y_truth_rel[y_truth_reads==0] <- 0
 
 y_predict_rel_5<-y_predict_rel
@@ -118,11 +113,11 @@ y_predict<-ts_preds[["hold-out-m4"]]@series[["m4"]]@values
 y_truth<-ts@series[["m4"]]@values
 y_truth_reads<-ts_reads@series[["m4"]]@values
 
-y_predict_transformed <-sinh(y_predict)
+y_predict_transformed <-(y_predict)
 y_predict_transformed[y_predict_transformed<0] <-0
 y_predict_rel <- y_predict_transformed / colSums(y_predict_transformed)
 
-y_truth_rel<-sinh(y_truth)/colSums(sinh(y_truth))
+y_truth_rel<-(y_truth)/colSums((y_truth))
 y_truth_rel[y_truth_reads==0] <- 0
 
 y_predict_rel_4<-y_predict_rel
@@ -137,11 +132,11 @@ y_predict<-ts_preds[["hold-out-m3"]]@series[["m3"]]@values
 y_truth<-ts@series[["m3"]]@values
 y_truth_reads<-ts_reads@series[["m3"]]@values
 
-y_predict_transformed <-sinh(y_predict)
+y_predict_transformed <-(y_predict)
 y_predict_transformed[y_predict_transformed<0] <-0
 y_predict_rel <- y_predict_transformed / colSums(y_predict_transformed)
 
-y_truth_rel<-sinh(y_truth)/colSums(sinh(y_truth))
+y_truth_rel<-(y_truth)/colSums((y_truth))
 y_truth_rel[y_truth_reads==0] <- 0
 
 y_predict_rel_3<-y_predict_rel
@@ -156,17 +151,17 @@ y_predict<-ts_preds[["hold-out-m2"]]@series[["m2"]]@values
 y_truth<-ts@series[["m2"]]@values
 y_truth_reads<-ts_reads@series[["m2"]]@values
 
-y_predict_transformed <-sinh(y_predict)
+y_predict_transformed <-(y_predict)
 y_predict_transformed[y_predict_transformed<0] <-0
 y_predict_rel <- y_predict_transformed / colSums(y_predict_transformed)
 
-y_truth_rel<-sinh(y_truth)/colSums(sinh(y_truth))
+y_truth_rel<-(y_truth)/colSums((y_truth))
 y_truth_rel[y_truth_reads==0] <- 0
 
 y_predict_rel_2<-y_predict_rel
 y_truth_rel_2<-y_truth_rel
 
-output_folder <- '../_outputs/arcsinh'
+output_folder <- '../_outputs/reads'
 
 #dir.create(output_folder)
 
