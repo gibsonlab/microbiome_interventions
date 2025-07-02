@@ -23,6 +23,7 @@ reads <- read_csv("../_data/healthy/reads.csv") |> column_to_rownames("sample")
 samples <- read_csv("../_data/healthy/samples.csv")
 
 R <- as.matrix(reads)
+R<-R+1
 R <- R / rowSums(R) * 100000
 min(R)
 max(R)
