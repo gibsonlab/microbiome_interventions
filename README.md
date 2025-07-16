@@ -1,3 +1,5 @@
+This was forked to peform forecasting with mbtransfer on our humanized mouse data the rest of this markdown is left unchanged 
+
 # Microbiome Intervention Analysis
 
 This repository includes scripts for reproducing simulation experiments in [mbtransfer: Microbiome Intervention Analysis using Transfer Functions and Mirror Statistics](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1012196). Two of the sub-directories (`mdsine` and `fido`) wrap the baseline methods discussed in the paper, so that they all use a consistent interface. `tfPaper` includes data generation code, and `cluster` sets up the CHTC environment for experiments. Our package can be found in the [accompanying repo](https://github.com/krisrs1128/mbtransfer).
