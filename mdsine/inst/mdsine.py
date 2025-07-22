@@ -3,13 +3,16 @@ import pathlib
 from mdsine2.names import STRNAMES
 
 def set_params(model="NegBin", **kwargs):
-  params = {"seed": 0, "burnin": 25, "n_samples": 200, "checkpoint": 100, "basepath": "."}
-  params.update(**kwargs)
-
   if model == "NegBin":
+    params = {"seed": 0, "burnin": 25, "n_samples": 200, "checkpoint": 100, "basepath": "."}
+    params.update(**kwargs)
     result = md2.config.NegBinConfig(**params)
   else:
+    # Shorten main inference run, so we can diagnose fwsim x0
+    params = {"seed": 0, "burnin": 10, "n_samples": 10, "checkpoint": 10, "basepath": "."}
+    params.update(**kwargs)
     result = md2.config.MDSINE2ModelConfig(**params)
+    result.LEARN[STRNAMES.CLUSTERING] = False
   return result
 
 
@@ -55,6 +58,9 @@ def forward_simulate(fit, x0, perturbations=None, starts=None, ends=None,
 
   growth = md2.summary(fit.graph[STRNAMES.GROWTH_VALUE])["mean"]
   interactions = md2.summary(fit.graph[STRNAMES.INTERACTIONS_OBJ])["mean"]
+  
+  print("Python forward_simulate || x0:")
+  print(x0.flatten())
 
   dyn = md2.model.gLVDynamicsSingleClustering(
     growth=growth,

@@ -4,13 +4,13 @@
 #' @export
 method_configurations <- function(data_paths) {
   expand.grid(
-    method_hyper = c("mbtransfer-1", "mbtransfer-2", "mdsine", "fido-3", "fido-4"),
+    method_hyper = c("mdsine"),
     normalization = c("none", "DESeq2", "DESeq2-asinh"),
     data_path = data_paths
   ) |>
     separate(method_hyper, c("method", "hyper"), convert = TRUE) |>
     mutate(
-      hyper = list(list(P = 2, Q = 2), list(P = 4, Q = 4), list(sigma = 1, rho = 1), list(sigma = .5, rho = .5))[hyper],
+      hyper = list()[hyper],
       output_path = glue("result-{str_pad(row_number(), 3, 'left', '0')}.rda")
     )
 }

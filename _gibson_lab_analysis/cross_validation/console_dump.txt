@@ -1,0 +1,520 @@
+Restarting R session...
+
+> rstudioapi::writeRStudioPreference("console_max_lines", as.integer(10000))  # print more lines in console.
+> knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+> #library(fido2)
+> library(fs)
+> library(glue)
+> library(mbtransfer)
+Loading required package: abind
+Loading required package: ggplot2
+Loading required package: progress
+Loading required package: purrr
+Loading required package: slider
+Loading required package: insight
+Loading required package: xgboost
+> library(mdsine)
+> library(tfPaper)
+> library(tidyverse)
+── Attaching core tidyverse packages ────────────────────────────────────────────────────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ stringr   1.5.1
+✔ forcats   1.0.0     ✔ tibble    3.3.0
+✔ lubridate 1.9.4     ✔ tidyr     1.3.1
+✔ readr     2.1.5     
+── Conflicts ──────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+✖ dplyr::slice()  masks xgboost::slice()
+ℹ Use the conflicted package to force all conflicts to become errors
+> set.seed(20230412)
+> configurations <- dir_ls(params$data_dir) |>
++   path_abs() |>
++   method_configurations() |>
++   mutate(data_path_base = basename(as.character(data_path)))
+> 
+> data_config <- data_parameters() |>
++   mutate(data_path_base = basename(output_path)) |>
++   select(-output_path)
+> 
+> configurations <- configurations |>
++   left_join(data_config) |>
++   filter(!(method == "mdsine" & n_taxa > 200))
+Joining with `by = join_by(data_path_base)`
+> 
+> attach(as.list(configurations[params$run_id, ]))
+The following object is masked _by_ .GlobalEnv:
+
+    hyper
+
+> 
+> if (method == "mbtransfer") {
++   predict <- mbtransfer::predict
++ } else if (method == "mdsine") {
++   predict <- mdsine::predict
++ }
+> load(as.character(data_path))
+> hyper <- c(hyper[[1]], list(taxonomy = taxonomy))
+> 
+> interventions_df <- data.frame(interventions) |>
++   rownames_to_column("sample")
+> metadata <- metadata |>
++   left_join(interventions_df) |>
++   rename(condition = P1)
+Joining with `by = join_by(sample)`
+> reads[reads > .Machine$integer.max] <- .Machine$integer.max - 1
+> 
+> ts <- reads |>
++   normalize(normalization, metadata) |>
++   ts_from_dfs(interventions, metadata, subject_data) |>
++   interpolate()
+Joining with `by = join_by(subject)`
+> tr_fun <- function(method, hyper = list()) {
++   function(x) {
++     if (method == "mdsine") {
++       mdsine(ts, hyper$taxonomy)
++     } else if (method == "mbtransfer") {
++       mbtransfer(ts, P = hyper$P, Q = hyper$Q)
++     } else if (method == "fido") {
++       fido(ts, sigma = hyper$sigma, rho = hyper$rho)
++     }
++   }
++ }
+> 
+> start <- Sys.time()
+> result <- cross_validate(ts, tr_fun(method, hyper), K = 4)
+[1] 1
+[1] "checkpoint 0"
+[1] "checkpoint 0.5"
+[INFO] TaxaSet parsng new taxonomy table. Resetting
+[INFO] Setting Single Write, Multiple Read Mode
+[INFO] Setting the trace of learned parameters
+[INFO] #######################################
+[INFO] Setting the trace of Negative binomial dispersion a0
+[INFO] Setting the trace of Negative binomial dispersion a1
+[INFO] Setting the trace of Filtering
+[INFO] Setting the trace for diagnostic variables
+[INFO] ##########################################
+100%|██████████| 200/200 [02:02<00:00,  1.63it/s]
+[INFO] Inference total time: 0.6138599026203155/Gibb step
+[INFO] remove local traces
+[INFO] max_value found: 1000000186.8061248, scaling_factor: 9.999998131939101e-08
+[INFO] Normalizing abundances for a max value of 100. Normalization constant: 1.0000E-07
+[INFO] There are 1350 qPCR measurements for 3 buckets. Each bucket is 450 measurements long
+[INFO] Initializing Filtering
+[INFO] Setting up the essential timepoints
+[INFO] Essential timepoints: [-11. -10.  -9.  -8.  -7.  -6.  -5.  -4.  -3.  -2.  -1.   0.   1.   2.
+   3.   4.   5.   6.   7.   8.   9.  10.  11.  12.  13.  14.  15.]
+[INFO] Initializing Zero inflation
+[WARNING] `zero_inflation_transition_policy` is None so we are not doing anything
+[INFO] Initializing LHS vector
+[INFO] Initializing growth design matrix
+[INFO] Initializing self-interactions design matrix
+[INFO] Initializing Clustering concentration parameter
+[INFO] Cluster Concentration initialization results:
+	prior shape: 1e-05
+	prior scale: 100000.0
+	value: 1.0
+[INFO] Initializing Clustering parameter
+[INFO] Cluster Assingments initialization results:
+Clustering object (contains ability to change the cluster assignments), n_clusters: 30
+Cluster 100200
+	members: ['tax1', 'tax53', 'tax95', 'tax26', 'tax91', 'tax93', 'tax63']
+	size: 7
+Cluster 100201
+	members: ['tax2', 'tax43', 'tax20']
+	size: 3
+Cluster 100202
+	members: ['tax3', 'tax28']
+	size: 2
+Cluster 100203
+	members: ['tax9', 'tax4']
+	size: 2
+Cluster 100204
+	members: ['tax47', 'tax10', 'tax5', 'tax23']
+	size: 4
+Cluster 100205
+	members: ['tax13', 'tax6']
+	size: 2
+Cluster 100206
+	members: ['tax7', 'tax14', 'tax61', 'tax81', 'tax57', 'tax58', 'tax29']
+	size: 7
+Cluster 100207
+	members: ['tax66', 'tax16', 'tax8']
+	size: 3
+Cluster 100208
+	members: ['tax11', 'tax45']
+	size: 2
+Cluster 100209
+	members: ['tax12', 'tax48', 'tax24']
+	size: 3
+Cluster 100210
+	members: ['tax62', 'tax15']
+	size: 2
+Cluster 100211
+	members: ['tax17', 'tax64', 'tax32']
+	size: 3
+Cluster 100212
+	members: ['tax33', 'tax35', 'tax36', 'tax67', 'tax72', 'tax18']
+	size: 6
+Cluster 100213
+	members: ['tax38', 'tax77', 'tax78', 'tax79', 'tax19']
+	size: 5
+Cluster 100214
+	members: ['tax41', 'tax21', 'tax87']
+	size: 3
+Cluster 100215
+	members: ['tax92', 'tax46', 'tax22']
+	size: 3
+Cluster 100216
+	members: ['tax25', 'tax34', 'tax31']
+	size: 3
+Cluster 100217
+	members: ['tax59', 'tax51', 'tax85', 'tax86', 'tax56', 'tax27']
+	size: 6
+Cluster 100218
+	members: ['tax60', 'tax30']
+	size: 2
+Cluster 100219
+	members: ['tax73', 'tax37', 'tax94']
+	size: 3
+Cluster 100220
+	members: ['tax65', 'tax69', 'tax70', 'tax39', 'tax74', 'tax75']
+	size: 6
+Cluster 100221
+	members: ['tax82', 'tax83', 'tax80', 'tax40']
+	size: 4
+Cluster 100222
+	members: ['tax42', 'tax84']
+	size: 2
+Cluster 100223
+	members: ['tax44', 'tax55', 'tax88']
+	size: 3
+Cluster 100224
+	members: ['tax49', 'tax89', 'tax76', 'tax54']
+	size: 4
+Cluster 100225
+	members: ['tax100', 'tax50', 'tax52']
+	size: 3
+Cluster 100226
+	members: ['tax90', 'tax68']
+	size: 2
+Cluster 100227
+	members: ['tax71']
+	size: 1
+Cluster 100228
+	members: ['tax97', 'tax98', 'tax96']
+	size: 3
+Cluster 100229
+	members: ['tax99']
+	size: 1
+[INFO] Initializing Process Variance parameter
+[INFO] Initializing Mean parameter for the truncated normal prior of the growth parameter
+[INFO] Initializing Variance parameter for the truncated normal prior of the growth parameter
+[INFO] Initializing Growth parameter
+[INFO] Growth value initialization: [5.63325096e-01 1.98242419e-01 8.59751874e-02 1.05023018e-01
+ 2.46876028e-01 3.55942851e-02 3.74930791e-01 1.02748732e-01
+ 1.57827679e-01 4.03851609e-01 3.15419298e-01 7.18943493e-02
+ 1.43556980e-01 7.57943668e-02 2.22227828e-02 1.97583374e-01
+ 1.35046378e-01 3.25598606e-01 4.22131456e-04 1.93955771e-01
+ 2.17336792e-01 2.27884231e-01 1.99787092e-01 1.12865648e-01
+ 2.24917320e-01 3.79061771e-01 2.21379890e-01 1.97383211e-01
+ 1.41014635e-01 1.00606488e-01 1.43679246e-01 1.40124652e-01
+ 5.39384828e-01 2.17006419e-01 5.43030853e-01 4.75474523e-01
+ 4.09808343e-01 3.12850022e-01 5.72703125e-02 2.78675917e-01
+ 2.46614919e-02 2.02728197e-01 3.13178508e-01 6.33560850e-02
+ 1.26402622e-01 2.37276829e-02 5.81743444e-01 3.89874751e-02
+ 3.98577253e-02 8.23799170e-01 1.89129654e-01 1.26927808e-01
+ 3.38133394e-01 7.23678335e-02 2.87399719e-01 3.57245155e-01
+ 2.81797732e-02 4.22061911e-02 2.45248803e-01 1.42134593e-02
+ 2.04991731e-01 4.11811331e-02 7.30658618e-01 1.68878617e-01
+ 6.52337522e-02 2.42857219e-01 4.49375894e-01 1.24803267e-01
+ 5.73158357e-02 1.84787013e-01 7.82654058e-02 3.50725305e-01
+ 3.65908497e-01 3.01577337e-02 1.15330346e-02 1.52032569e-01
+ 4.11294066e-01 1.61861193e-01 4.53551497e-01 8.63170374e-02
+ 1.10371075e-01 2.13056973e-01 4.15111012e-01 8.95396289e-02
+ 2.79059231e-01 2.68534445e-01 2.68385887e-01 1.60144531e-01
+ 5.37383168e-02 3.25030650e-01 1.00856076e+00 1.39760076e-01
+ 3.89096998e-01 1.86924552e-01 8.60520206e-01 2.39802876e-01
+ 9.07777753e-02 3.69415145e-01 3.35284946e-01 3.25493857e-01]
+[INFO] Growth prior mean: 1
+[INFO] Growth truncation settings: (0.0, inf)
+[INFO] Initializing Mean parameter for the truncated normal prior of the self-interaction parameter
+[INFO] Initializing Variance parameter for the truncated normal prior of the self-interaction parameter
+[INFO] Initializing Self interaction parameter
+[INFO] Self-interactions value initialization: [1.32130976 0.7239641  0.207604   0.08776595 2.83228663 0.23793357
+ 0.50105212 0.22238742 0.22781073 1.9640775  1.0169199  6.84315584
+ 0.08036041 0.55804324 0.08099348 0.108286   0.0888129  0.08493061
+ 0.08790086 1.48271135 0.41171152 0.63223409 0.31830737 0.25882202
+ 0.13619088 0.86857822 0.56511129 0.11369743 0.14378728 0.21980252
+ 0.37833376 0.04444454 0.69404003 0.06655431 3.564045   0.21816444
+ 1.8645396  0.12055657 0.04958369 0.75167321 1.53899001 0.11032606
+ 0.25889745 0.18390069 0.1772855  0.58637598 0.29721172 0.02570364
+ 0.12353023 0.59982291 0.28416787 0.15508725 0.23112056 0.16072995
+ 2.58736896 0.75350674 0.17797343 0.06229346 0.12653712 0.04493913
+ 0.08301407 0.32318071 0.30632071 0.88088104 0.61297247 0.34960572
+ 0.79560973 0.331739   0.05268773 4.02564241 0.03454784 0.32291017
+ 0.66344565 0.24586178 0.05212322 0.06664165 0.15012047 0.08973965
+ 1.04578438 0.09156097 0.04625398 0.77525778 5.12519829 0.10612865
+ 1.14887768 0.28518379 6.39168122 0.51693291 0.01965757 2.1316356
+ 0.44676777 0.34677098 0.22887897 0.15946006 0.33255337 0.49571256
+ 0.06428589 0.58181337 0.15908215 2.67780771]
+[INFO] Self-interactions truncation settings: (0, inf)
+[INFO] Initializing Mean parameter for the normal prior of the interaction parameter
+[INFO] Initializing Variance parameter for the normal prior of the interaction parameter
+[INFO] Prior Variance Interactions initialization results:
+	prior dof: 2.01
+	prior scale: 3.6681586041135703
+	value: 737.2998794268433
+[INFO] Initializing Cluster interaction value parameter
+[INFO] Initializing Cluster interaction indicator parameter
+[INFO] Initializing interactions base design matrix
+[INFO] Initialized interactions mixing design matrix
+[INFO] Initializing interactions matrix
+[INFO] Initializing Cluster interaction probability
+[INFO] Indicator Probability initialization results:
+	prior a: 0.5
+	prior b: 16.684216868127876
+	value: 0.029096467056777327
+[INFO] Initializing Mean parameter for the normal prior of the perturbation parameter
+[INFO] Initializing Variance parameter for the normal prior of the perturbation parameter
+[INFO] Prior Variance Interactions initialization results:
+	prior dof: 2.5
+	prior scale: 2000.0
+	value: 10000.0
+[INFO] Initializing Perturbation indicator parameter
+[INFO] Perturbation indicator initialization results:
+	Perturbation 0:
+		indicator: [False False False False False False False False False False False False
+ False False False False False False False False False False False False
+ False False False False False False]
+
+[INFO] Initializing Perturbation value parameter
+[INFO] Perturbation magnitude initialization results:
+	Perturbation P1:
+		value: [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0. 0. 0. 0. 0. 0.]
+
+[INFO] Initializing Probability parameter for the beta prior of the perturbation indicator parameter
+[INFO] Perturbation indicator probability initialization results:
+	Perturbation 0:
+		prior a: 0.5
+		prior b: 4.61512051684126
+		value: 0.09774940753668987
+
+[INFO] Initializing Logistic growth parameters (growth, self-interactions, interactions/perturbations)
+[INFO] Initializing qPCR hyperprior scales
+[INFO] Initializing qPCR hyperprior degrees of freedom
+[INFO] Initializing qPCR variances
+[INFO] 
+
+
+
+[INFO] Initialization Values:
+[INFO] Growth
+[INFO] 	prior.loc: 1
+[INFO] 	prior.scale2: 389.99650864770695
+[INFO] 	value: [5.63325096e-01 1.98242419e-01 8.59751874e-02 1.05023018e-01
+ 2.46876028e-01 3.55942851e-02 3.74930791e-01 1.02748732e-01
+ 1.57827679e-01 4.03851609e-01 3.15419298e-01 7.18943493e-02
+ 1.43556980e-01 7.57943668e-02 2.22227828e-02 1.97583374e-01
+ 1.35046378e-01 3.25598606e-01 4.22131456e-04 1.93955771e-01
+ 2.17336792e-01 2.27884231e-01 1.99787092e-01 1.12865648e-01
+ 2.24917320e-01 3.79061771e-01 2.21379890e-01 1.97383211e-01
+ 1.41014635e-01 1.00606488e-01 1.43679246e-01 1.40124652e-01
+ 5.39384828e-01 2.17006419e-01 5.43030853e-01 4.75474523e-01
+ 4.09808343e-01 3.12850022e-01 5.72703125e-02 2.78675917e-01
+ 2.46614919e-02 2.02728197e-01 3.13178508e-01 6.33560850e-02
+ 1.26402622e-01 2.37276829e-02 5.81743444e-01 3.89874751e-02
+ 3.98577253e-02 8.23799170e-01 1.89129654e-01 1.26927808e-01
+ 3.38133394e-01 7.23678335e-02 2.87399719e-01 3.57245155e-01
+ 2.81797732e-02 4.22061911e-02 2.45248803e-01 1.42134593e-02
+ 2.04991731e-01 4.11811331e-02 7.30658618e-01 1.68878617e-01
+ 6.52337522e-02 2.42857219e-01 4.49375894e-01 1.24803267e-01
+ 5.73158357e-02 1.84787013e-01 7.82654058e-02 3.50725305e-01
+ 3.65908497e-01 3.01577337e-02 1.15330346e-02 1.52032569e-01
+ 4.11294066e-01 1.61861193e-01 4.53551497e-01 8.63170374e-02
+ 1.10371075e-01 2.13056973e-01 4.15111012e-01 8.95396289e-02
+ 2.79059231e-01 2.68534445e-01 2.68385887e-01 1.60144531e-01
+ 5.37383168e-02 3.25030650e-01 1.00856076e+00 1.39760076e-01
+ 3.89096998e-01 1.86924552e-01 8.60520206e-01 2.39802876e-01
+ 9.07777753e-02 3.69415145e-01 3.35284946e-01 3.25493857e-01]
+[INFO] Self-Interactions
+[INFO] 	prior.loc: 0.27153266459614706
+[INFO] 	prior.scale2: 737.2998794268433
+[INFO] 	value: [1.32130976 0.7239641  0.207604   0.08776595 2.83228663 0.23793357
+ 0.50105212 0.22238742 0.22781073 1.9640775  1.0169199  6.84315584
+ 0.08036041 0.55804324 0.08099348 0.108286   0.0888129  0.08493061
+ 0.08790086 1.48271135 0.41171152 0.63223409 0.31830737 0.25882202
+ 0.13619088 0.86857822 0.56511129 0.11369743 0.14378728 0.21980252
+ 0.37833376 0.04444454 0.69404003 0.06655431 3.564045   0.21816444
+ 1.8645396  0.12055657 0.04958369 0.75167321 1.53899001 0.11032606
+ 0.25889745 0.18390069 0.1772855  0.58637598 0.29721172 0.02570364
+ 0.12353023 0.59982291 0.28416787 0.15508725 0.23112056 0.16072995
+ 2.58736896 0.75350674 0.17797343 0.06229346 0.12653712 0.04493913
+ 0.08301407 0.32318071 0.30632071 0.88088104 0.61297247 0.34960572
+ 0.79560973 0.331739   0.05268773 4.02564241 0.03454784 0.32291017
+ 0.66344565 0.24586178 0.05212322 0.06664165 0.15012047 0.08973965
+ 1.04578438 0.09156097 0.04625398 0.77525778 5.12519829 0.10612865
+ 1.14887768 0.28518379 6.39168122 0.51693291 0.01965757 2.1316356
+ 0.44676777 0.34677098 0.22887897 0.15946006 0.33255337 0.49571256
+ 0.06428589 0.58181337 0.15908215 2.67780771]
+[INFO] Prior Variance Growth
+[INFO] 	prior.dof: 2.5
+[INFO] 	prior.scale: 77.99930172954139
+[INFO] 	value: 389.99650864770695
+[INFO] Prior Variance Self-Interactions
+[INFO] 	prior.dof: 2.5
+[INFO] 	prior.scale: 147.45997588536866
+[INFO] 	value: 737.2998794268433
+[INFO] Prior Variance Interactions
+[INFO] 	prior.dof: 2.01
+[INFO] 	prior.scale: 3.6681586041135703
+[INFO] 	value: 737.2998794268433
+[INFO] Process Variance
+[INFO] 	prior.dof: 2.5
+[INFO] 	prior.scale: 0.008000000000000002
+[INFO] 	prior mean: 0.04000000000000001
+[INFO] Concentration
+[INFO] 	prior.shape: 1e-05
+[INFO] 	prior.scale: 100000.0
+[INFO] 	value: 1.0
+[INFO] Indicator probability
+[INFO] 	prior.a: 0.5
+[INFO] 	prior.b: 16.684216868127876
+[INFO] 	value: 0.029096467056777327
+[INFO] Perturbation values:
+[INFO] 	perturbation P1
+[INFO] 		value: {100200: 0, 100201: 0, 100202: 0, 100203: 0, 100204: 0, 100205: 0, 100206: 0, 100207: 0, 100208: 0, 100209: 0, 100210: 0, 100211: 0, 100212: 0, 100213: 0, 100214: 0, 100215: 0, 100216: 0, 100217: 0, 100218: 0, 100219: 0, 100220: 0, 100221: 0, 100222: 0, 100223: 0, 100224: 0, 100225: 0, 100226: 0, 100227: 0, 100228: 0, 100229: 0}
+[INFO] 		prior.loc: 0
+[INFO] Perturbation prior variances:
+[INFO] 		dof: 2.5
+[INFO] 		scale: 2000.0
+[INFO] 		value: 10000.0
+[INFO] Perturbation indicators:
+[INFO] 	perturbation P1: [False False False False False False False False False False False False
+ False False False False False False False False False False False False
+ False False False False False False]
+[INFO] Perturbation indicator probability:
+[INFO] 	perturbation P1
+[INFO] 		value: 0.09774940753668987
+[INFO] 		prior.a: 0.5
+[INFO] 		prior.b: 4.61512051684126
+[INFO] Setting Single Write, Multiple Read Mode
+[INFO] Setting the trace of learned parameters
+[INFO] #######################################
+[INFO] Setting the trace of Cluster interaction indicator parameter
+[INFO] Setting the trace of Cluster interaction probability
+[INFO] Setting the trace of Perturbation indicator parameter
+[INFO] Setting the trace of Probability parameter for the beta prior of the perturbation indicator parameter
+[INFO] Setting the trace of Logistic growth parameters (growth, self-interactions, interactions/perturbations)
+[INFO] Setting the trace of Mean parameter for the normal prior of the interaction parameter
+[INFO] Setting the trace of Mean parameter for the normal prior of the perturbation parameter
+[INFO] Setting the trace of Mean parameter for the truncated normal prior of the growth parameter
+[INFO] Setting the trace of Mean parameter for the truncated normal prior of the self-interaction parameter
+[INFO] Setting the trace of Variance parameter for the normal prior of the interaction parameter
+[INFO] Setting the trace of Variance parameter for the normal prior of the perturbation parameter
+[INFO] Setting the trace of Process Variance parameter
+[INFO] Setting the trace of Filtering
+[INFO] Setting the trace of Clustering concentration parameter
+[INFO] Setting the trace for diagnostic variables
+[INFO] ##########################################
+100%|██████████| 10/10 [00:39<00:00,  3.97s/it]
+[INFO] Inference total time: 3.9744380235672/Gibb step
+[INFO] remove local traces
+[INFO] Denormalizing the parameters
+[1] "checkpoint 1"
+[1] "checkpoint 2"
+[1] "checkpoint 3"
+[1] 2
+[1] "checkpoint 0"
+[1] "checkpoint 0.5"
+Python forward_simulate || x0:
+[ 1.  0.  0.  0.  0.  0.  1.  1.  0.  0.  0.  0.  2.  0.  1.  2.  3. 13.
+  3.  0.  0.  3.  0.  0.  7.  0.  3.  0.  2.  2.  0. 11.  5.  0.  0.  4.
+  1. 16.  4.  0.  0.  0.  0.  1.  3.  0.  6. 15. 23.  6.  4. 18. 10.  4.
+  0.  0.  1.  0.  7.  5.  1.  0.  6.  1.  1.  4.  3.  3.  2.  1. 27.  3.
+  0.  0. 11. 15. 14.  8.  1.  2.  2.  1.  1. 16.  0.  8.  0.  1.  9.  0.
+  2.  0.  4.  0.  1.  0.  3.  6.  9.  0.]
+Python forward_simulate || x0:
+[ 7.  6.  2.  3.  0.  1.  4.  6.  2.  2.  2.  0.  3.  2.  2.  3.  9. 29.
+  2.  0.  8.  3.  9.  1.  1.  2.  0.  6.  2.  0.  1.  5.  7. 36.  4.  6.
+  1. 44.  7.  2.  0.  6.  3.  1.  8.  4. 15.  3.  1. 12.  1. 11.  4.  2.
+  0.  3.  1.  0.  9.  0.  1.  5.  7.  1.  0.  8.  8.  3. 11.  0.  6.  5.
+  8.  1.  5.  7. 15.  3.  4.  4.  6.  0.  1.  3.  2.  1.  0.  0. 68.  1.
+ 23.  3.  2.  3.  6.  1. 10.  4.  5.  0.]
+Python forward_simulate || x0:
+[ 1.  1.  5.  1.  0.  1.  8.  5.  2.  0.  1.  0.  5.  1.  0.  6.  9. 12.
+  0.  0.  4.  0.  0.  1.  3.  0.  1.  2.  3.  1.  1.  9.  5. 15.  1. 27.
+  1. 11.  6.  1.  1.  2.  2.  0.  3.  0.  8.  2.  0. 10.  0.  3.  0.  0.
+  0.  3.  0.  2. 16.  5.  7.  0.  8.  0.  0.  2.  3.  0. 11.  0.  4.  6.
+  5.  3.  1. 17. 14.  8.  0.  2. 14.  1.  0.  2.  0.  0.  0.  0. 34.  2.
+ 18.  1.  1.  0. 13.  1.  0.  2.  0.  0.]
+Python forward_simulate || x0:
+[  8.   1.   3.  12.   3.  12.   6.  61.  17.   1.  16.   0.  47.   7.
+   0.  77.  52.  67.  73.   0.   3.   3.  28.  34. 206.   2.   9.  16.
+  28.  21.   6.  43.   6. 115.   4.  31.  13.  40. 113.  21.   4.  16.
+  24.  11.  15.   2.  43. 210.  35. 121.   7.   4.  13.  12.   0.  23.
+   8.   6.  13.  45. 422.   7.  69.   2.   2.  38.   5.  25.  81.   1.
+ 273.  44.   5.   7.  41. 111.  99.  32.  11.  14. 383.   0.   3.  18.
+   0.   7.   0.   5.  73.   3.  50.  21.  13.  21.  48.  14.  21.   9.
+   4.   1.]
+Python forward_simulate || x0:
+[ 0.  0.  0.  2.  0.  4.  3.  0.  1.  1.  0.  0.  2.  0.  0.  5.  0.  2.
+  1.  0.  1.  0.  0.  2.  1.  0.  0.  1.  0.  1.  0.  3.  1.  1.  0.  4.
+  1.  1.  0.  0.  0.  0.  5.  1.  1.  0.  3.  0.  0.  4.  0.  2.  1.  3.
+  0.  0.  0.  0.  2.  3.  1.  0. 10.  1.  0.  4.  0.  0.  1.  0.  6.  0.
+  3.  0.  4.  1.  0. 11.  0.  0.  6.  0.  0.  4.  0.  0.  0.  0. 12.  0.
+  5.  1.  1.  1.  3.  0.  2.  0.  2.  0.]
+Python forward_simulate || x0:
+[ 0.  5.  1.  4.  0.  0.  0.  1.  2.  0.  1.  0.  3.  0.  0.  2.  0. 26.
+  2.  2.  1.  0.  2.  0.  5.  0.  1.  1.  4.  0.  3.  5.  0. 57.  1.  2.
+  1.  2.  2.  0.  1. 12.  7.  5.  0.  0.  1.  3.  1.  1.  0.  7.  2.  4.
+  4.  2.  1.  2.  1.  7.  2.  0.  3.  0.  1.  1.  0.  2.  4.  0.  8.  3.
+  3.  3. 22.  1.  6.  1.  0. 12.  2.  1.  3.  9.  0.  0.  0.  1. 35.  0.
+  7.  2. 21.  6.  1.  1. 11.  2.  6.  1.]
+Python forward_simulate || x0:
+[ 0.  1.  2.  6.  0.  1.  0.  1.  1.  0.  6.  0.  8.  0.  0.  0. 13. 23.
+  0.  0.  2.  0.  5.  3. 25.  7.  0. 17.  5.  0.  1.  9.  1. 61.  1.  3.
+  0.  1.  2.  0.  0. 11.  3.  2.  7.  0. 14.  4.  5. 13.  5.  7. 10.  5.
+  0.  0.  1.  4.  5.  4.  3.  0.  1.  0.  0.  0.  0.  0.  1.  0. 14. 10.
+  2.  1.  5.  6. 19.  8.  0.  3.  4.  0.  0.  2.  2.  4.  0.  0.  6.  0.
+  3.  0.  1.  2.  3.  2.  8.  4. 10.  1.]
+Python forward_simulate || x0:
+[  6.   2.  37.  13.   0.   4.  13.   4.   8.   8.  11.   2.  99.   7.
+  16.  25.   7.  77.  15.   2.  11.   7.   3.   6.  43.   7.   0. 148.
+  53.   2.   5.  54.   8. 102.   1.  59.   4.  30.  40.   6.   0.  11.
+  33.   8.   7.   2.   7.  87.  47.  11.  11.   6.  29. 104.   0.   5.
+   4.  52.  31.  29. 111.   3.  23.   0.   7.  12.  15.  11.  15.   2.
+ 167.  11.  38.  15.  47. 113.  47.   8.   0.   7.  31.   2.   0.  18.
+   1.  16.   1.   2. 264.   1.  64.   3.  17.  12.  76.   2. 147.  18.
+   5.   0.]
+Python forward_simulate || x0:
+[ 4.  4.  4. 13.  0.  1.  0.  2.  0.  0.  0.  0.  5.  0.  1.  3.  3. 24.
+  3.  3.  0.  0. 14.  2.  9.  4.  1. 16.  2.  0.  3. 10.  2. 19.  1.  2.
+  0.  5. 44.  0.  1.  7.  8.  6.  0.  0. 17.  5.  1.  2.  9.  0.  0.  1.
+  0.  7.  2.  1.  5.  7.  0.  3.  5.  0.  1.  6.  2.  3.  4.  0. 17.  2.
+  2.  1. 46.  9. 11.  7.  1. 13.  1.  0.  0.  6.  4.  5.  2.  1. 63.  2.
+  5.  1.  1. 13. 13.  2.  4.  3.  6.  0.]
+Python forward_simulate || x0:
+[ 0.  2. 10.  1.  0.  2.  1.  1.  1.  0.  0.  0. 10.  0.  2.  4. 17. 10.
+  0.  2.  1.  1.  7.  2.  7.  0.  2.  4.  2.  1.  6. 81.  2. 55.  1.  6.
+  0. 17.  8.  1.  1.  2.  3.  3.  6.  0.  4. 14.  8.  1.  4.  0.  4.  4.
+  0.  1.  0.  3. 11.  3.  3.  1.  0.  1.  3.  0.  1.  0. 10.  0.  7.  1.
+  5.  1.  3.  1.  3.  1.  0.  3. 15.  2.  1.  4.  0.  7.  0.  5.  2.  0.
+  0.  4.  0.  0.  1.  0. 21.  1. 12.  0.]
+Python forward_simulate || x0:
+[  1.  12.   6.  42.   2.   9.   7.   9.   8.   3.   1.   0.  31.   3.
+   4.  39.  38.  57.  51.   2.   3.   2.  21.   8.  29.   6.  13.  19.
+  32.  16.  10.  70.  16.  90.   4.  35.  10.  10.  29.  14.   0.   8.
+   3.  14.   7.   1.  39. 190.  13.  16.  30.   5.   5.   5.   2.   2.
+   2.  57.  42. 108.   7.   7.  15.   2.  19.  29.   7.  22. 112.   0.
+ 167.   6.  13.  19.  54.  46.  28.  28.   3.  14.  18.   5.   1.  13.
+   0.   8.   0.   1.  26.   5.  10.  13.  30.  15.  29.   9.  35.  13.
+   6.   0.]
+Python forward_simulate || x0:
+[ 5.  0.  2.  7.  0.  6.  0.  3.  2.  1.  0.  0.  0.  2.  0.  3.  1.  8.
+  2.  1.  2.  0.  5.  0.  6.  1.  0. 23.  0.  2.  2.  0.  2.  1.  0.  8.
+  0.  7.  9.  1.  0.  1.  3.  0.  1.  2.  3. 15.  0.  5.  3.  6. 10. 14.
+  0.  0.  1.  0.  5. 14. 22.  3.  7.  2.  0.  0.  1.  1.  1.  0.  8.  0.
+  0.  0.  0. 23.  2.  3.  0.  3. 12.  0.  1.  4.  1.  0.  0.  0. 42.  0.
+  3.  1.  3.  7.  9.  0.  6.  0.  0.  0.]

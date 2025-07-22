@@ -55,14 +55,20 @@ cross_validate <- function(ts_inter, train, K = 5, n_ahead = 5, offset = -1, see
   metrics <- list()
 
   for (k in seq_len(K)) {
+    print(k)
     if (!is.null(seeds)) {
       set.seed(seeds[k])
     }
+    print("checkpoint 0")
     splits <- train_test_split(ts_inter, 1 / K)
+    
+    print("checkpoint 0.5")
     fits[[k]] <- train(splits$train)
 
+    print("checkpoint 1")
     stest <- splits$test
     t_starts <- vector(length = length(stest))
+    print("checkpoint 2")
     for (i in seq_along(stest)) {
       t_starts[i] <- intervention_start(interventions(stest[[i]]), offset)
       values(stest[[i]]) <- values(stest[[i]])[, seq_len(t_starts[i]), drop = FALSE]
@@ -72,6 +78,7 @@ cross_validate <- function(ts_inter, train, K = 5, n_ahead = 5, offset = -1, see
       stest[[i]]@time <- stest[[i]]@time[predict_ix]
     }
 
+    print("checkpoint 3")
     y_hat[[k]] <- predict(fits[[k]], stest)
     for (h in seq_len(n_ahead)) {
       test_ix <- as.list(t_starts + h)
