@@ -19,165 +19,52 @@ library(glue)
 library(fs)
 library(tidyverse)
 library(tfPaper)
-theme_set(my_theme())
+library(egg)
 ```
 
-```{r}
-data_var <- data_parameters(params$outputs_dir) |>
-  mutate(data_path = factor(output_path)) |>
-  select(-output_path)
-configurations <- method_configurations(data_var$data_path) |>
-  left_join(data_var)
-```
-
-```{r}
-paths <- dir_ls(params$outputs_dir, recurse = TRUE) |>
-  path_filter(regexp=params$outputs_filter)
-
-metadata <- paths |>
-  as_tibble() |>
-  mutate(output_path = basename(value)) |>
-  rename(full_path = value) |>
-  left_join(configurations)
-```
-
-## Forecasting Results
-```{r}
-metrics <- paths |>
-  path_filter("*forecasting*") |>
-  map_dfr(~ { load(.); metrics }, .id = "full_path")
-
-computation <- paths |>
-  path_filter("*forecasting*") |>
-  map_dfr(~ { load(.); tibble(time_diff = time_diff) }, .id = "full_path")
-```
-
-```{r, fig.width = 11, fig.height = 4}
-pal <- c("#5F7343", "#F27405", "#F2380F", "#3B4F8C", "#068BBF")
-
-computation |>
-  left_join(metadata) |>
-  unnest_wider(hyper) |>
-  mutate(
-    time_diff = as.numeric(time_diff) / 60,
-    P = ifelse(is.na(P), "", as.character(P)),
-    rho = ifelse(is.na(rho), "", as.character(rho)),
-    hyperparameter = glue(" [{rho}{P}]"),
-    hyperparameter = ifelse(hyperparameter == " []", "", hyperparameter),
-    method = case_match(method, "mdsine" ~ "MDSINE2", "fido" ~ "fido", "mbtransfer" ~ "mbtransfer")
-  ) |>
-  ggplot() +
-  geom_boxplot(
-    aes(reorder(normalization, time_diff), time_diff,
-    fill = interaction(factor(method), hyperparameter, sep = ""), 
-    col = interaction(factor(method), hyperparameter, sep = "")), 
-    alpha = 0.6,
-    position = position_dodge2(preserve = "single")
-  ) +
-  scale_fill_manual(values = pal) +
-  scale_color_manual(values = pal) +
-  scale_y_log10() +
-  labs(y = "Minutes", col = "Method", fill = "Method", x = "Normalization") +
-  facet_wrap(~ method) +
-  theme(
-    strip.text = element_text(size = 16),
-    legend.text = element_text(size = 14)
-  )
-ggsave("computation-sim.png", width = 11, height = 4)
-```
-
-```{r, fig.width = 14, fig.height = 8}
-metrics <- metrics |>
-  left_join(metadata) |>
-  unnest_wider("hyper")
-
-for (norm_n in c("none", "DESeq2", "DESeq2-asinh")) {
-  cur_metrics <- metrics |>
-    mutate(
-      n_taxa = factor(glue("{n_taxa} taxa"), levels = c("100 taxa", "200 taxa", "400 taxa")),
-      prop_nonnull = glue("{100 * prop_nonnull}% nonnull"),
-      lag = glue("Lag {lag}"),
-      P = ifelse(is.na(P), "", as.character(P)),
-      rho = ifelse(is.na(rho), "", as.character(rho)),
-      hyperparameter = glue(" [{rho}{P}]"),
-      hyperparameter = ifelse(hyperparameter == " []", "", hyperparameter),
-      method = case_match(method, "mdsine" ~ "MDSINE2", "fido" ~ "fido", "mbtransfer" ~ "mbtransfer"),
-      baseline_lambda = glue("λ = {baseline_lambda}"),
-      phylo_alpha = glue("𝛼 = {phylo_alpha}"),
-      signal_B = glue("b = {signal_B}")
-      
-    ) |>
-    filter(normalization == norm_n)
-  
-  metrics_range <- cur_metrics |>
-    filter(method != "MDSINE2") |>
-    summarise(
-      min = median(mae, na.rm = T) - 1.5 * IQR(mae, na.rm = T),
-      max = median(mae, na.rm = T) + 3 * IQR(mae, na.rm = T)
-    )
-
-  p <- ggplot(cur_metrics) +
-    geom_boxplot(
-      aes(
-        interaction(n_taxa, signal_B, sep = ", "), mae,
-        fill = interaction(factor(method), hyperparameter, sep = ""), 
-        col = interaction(factor(method), hyperparameter, sep = "")), 
-      alpha = 0.5,
-      position = position_dodge2(preserve = "single")
-      ) +
-    scale_fill_manual(values = pal) +
-    scale_color_manual(values = pal) +
-    scale_y_continuous(limits = c(metrics_range$min, metrics_range$max)) +
-    facet_grid(phylo_alpha + baseline_lambda ~ prop_nonnull) +
-    labs(
-      x = "Number of Taxa", 
-      y = "Mean Absolute Error (Lags H = 1, ..., 5)",
-      col = "Method", 
-      fill = "Method",
-      title = glue("Normalization - {norm_n}")
-    ) +
-    theme(
-      strip.text = element_text(size = 14),
-      axis.text.x = element_text(angle = 90, size = 15),
-      axis.text.y = element_text(angle = 0, size = 10),
-      legend.title = element_text(size = 16),
-      legend.text = element_text(size = 14),
-      title = element_text(size = 18)
-    )
-
-  ggsave(glue("forecasting-sim-{norm_n}.png"), p, height = 8, width = 14)
-}
-```
 
 ### Inferential Results
 
-```{r}
-inference_config <- configurations |>
-  filter(map_lgl(hyper, ~ !is.null(.$P) > 0 && .$P == 2)) |>
-  mutate(output_path = glue("inference-{str_pad(row_number(), 3, 'left', '0')}.rda")) |>
-  select(-method)
+```{r, fig.height = 6, fig.width = 8} 
 
-testing_results <- paths |>
-  path_filter("*inference*") |>
-  map_dfr(~ { load(.); testing_results }, .id = "full_path") |>
-  mutate(output_path = path_file(full_path)) |>
-  left_join(inference_config)
+my_theme <- function() {
+  th <- theme_minimal() +
+    theme(
+      panel.grid.minor = element_blank(),
+      panel.background = element_rect(fill = "#f7f7f7"),
+      legend.box.background = element_rect(color = "black"),
+      #plot.background = element_rect(fill = "lightgray"),
+      panel.border = element_rect(fill = NA, color = "#0c0c0c", size = 0.6),
+      axis.text = element_text(size = 14),
+      axis.title = element_text(size = 16),
+      legend.position = "bottom"
+    )
+}
 
 
- #saveRDS(testing_results, file = "testing_results.rds")
+
+theme_set(my_theme())
 
 
-```
 
-```{r, fig.height = 6, fig.width = 10} 
-readRDS("testing_results.rds")
+
+
+tag_facet2 <- function(p, open = "(", close = ")", tag_pool = letters, x = -Inf, y = Inf, 
+    hjust = -0.5, vjust = 1.5, fontface = 2, family = "", ...) {
+
+    gb <- ggplot_build(p)
+    lay <- gb$layout$layout
+    tags <- cbind(lay, label = paste0(open, tag_pool[lay$PANEL], close), x = x, y = y)
+    p + geom_text(data = tags, aes_string(x = "x", y = "y", label = "label"), ..., hjust = hjust, 
+        vjust = vjust, fontface = fontface, family = family, inherit.aes = FALSE)
+}
+
+testing_results <- readRDS("testing_results.rds")
 
 
 pal <- c("#6D0FF2", "#B99AD9","#ffecf2",
  "#A65300", "#FFB808","#FFFFAD",
  "#007D30", "#00FF65", "#C4FFDB")
-
-
 
 
 
@@ -195,59 +82,57 @@ testing_results |>
   ) |>
   ggplot() +
   geom_vline(xintercept = 0.2, col = "#E0E0E0", linewidth = 1) +
-  geom_point(aes(fdp, power, shape = signal_B), size = 1.8) +
-  geom_point(aes(fdp, power, shape = signal_B, col = interaction(prop_nonnull, n_taxa, sep = ", ")), size = 1.6, alpha = 0.9) +
+  geom_point(aes(fdp, power, shape = signal_B), size = 4) +
+  geom_point(aes(fdp, power, shape = signal_B, col = interaction(prop_nonnull, n_taxa, sep = ", ")), size = 3, alpha = 0.95) +
+  scale_color_manual(values = pal) +
+  scale_y_continuous(breaks = c(0, .25, .5,.75,  1.0)) +
+  scale_x_continuous(breaks = c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8)) +
+  guides(color = guide_legend(nrow = 3)) +
+  facet_grid(n_taxa ~  prop_nonnull ) +
+  #annotate('text', label = LETTERS[1:8], x=0, y=.75) +
+  labs(x = "False Discovery Proportion", y = "Power", col = "Color", shape = "Signal /n Strength") +
+  #tag_facet() +
+  guides(shape = guide_legend(ncol = 1)) +
+  theme(
+    axis.text = element_text(size = 10),
+    strip.text = element_text(size = 14),
+    strip.text.y = element_text(angle = 0, size = 14),
+    panel.spacing.y = unit(0.5, "line"),
+    panel.spacing.x = unit(0.5, "line"),
+    legend.justification = c("left", "bottom"),
+    legend.box.background = element_rect(fill = "gray95", colour = "black")
+  )->p
+
+tag_facet2(p,hjust = -0.2, vjust=1.1, open="",close="",fontface = 2, size=5)
+
+ggsave(glue("fig1.pdf"), height = 6, width = 8)
+
+```
+
+```{r, fig.height = 6, fig.width = 10} 
+pal <- c("#6D0FF2", "#B99AD9","#ffecf2",
+ "#A65300", "#FFB808","#FFFFAD",
+ "#007D30", "#00FF65", "#C4FFDB")
+
+testing_results |>
+  filter(type == "marginal", normalization == "DESeq2-asinh", lag== 1, method=="mirror") |>
+  mutate(
+    prop_nonnull = glue("{100 * prop_nonnull}% nonnull"),
+    signal_B = glue("b = {signal_B}"),
+    baseline_lambda = glue("lambda = {baseline_lambda}"),
+    phylo_alpha = glue("alpha = {phylo_alpha}"),
+    lag = glue("Lag {lag}"),
+    #method = ifelse(method == "avg", "Pre/Post\nt-test", method),
+    #normalization = case_match(normalization, "DESeq2-asinh"),
+    n_taxa = glue("{n_taxa} taxa")
+  ) |>
+  ggplot() +
+  geom_vline(xintercept = 0.2, col = "#E0E0E0", linewidth = 1) +
+  geom_point(aes(fdp, power, shape = signal_B), size = 4) +
+  geom_point(aes(fdp, power, shape = signal_B, col = interaction(prop_nonnull, n_taxa, sep = ", ")), size = 3, alpha = .95) +
   scale_color_manual(values = pal) +
   scale_y_continuous(breaks = c(0, .25, .5,.75,  1)) +
   scale_x_continuous(breaks = c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8)) +
-  guides(color = guide_legend(nrow = 3)) +
-  facet_grid(normalization + phylo_alpha + n_taxa ~ lag + prop_nonnull + reorder(method, fdp)) +
-  labs(x = "False Discovery Proportion", y = "Power", col = "Lag", shape = "Signal Strength") +
-  theme(
-    axis.text = element_text(size = 10),
-    strip.text = element_text(size = 12),
-    strip.text.y = element_text(angle = 0, size = 12),
-    panel.spacing.y = unit(0.1, "line"),
-    panel.spacing.x = unit(0.5, "line")
-  )
-
-ggsave(glue("inference-sim-error.pdf"), height = 6, width = 12)
-
-summary_table <- testing_results |>
-  filter(type == "marginal") |>
-  group_by(method, normalization, phylo_alpha, lag, n_taxa, prop_nonnull, signal_B) |>
-  summarise(
-    FDP = round(mean(fdp), 3),
-    FDP_sd = round(sd(fdp), 3)
-  )
-
-write_csv(summary_table, "summary_table_fdp.csv")
-```
-
-```{r, fig.height = 6, fig.width = 10} 
-pal <- c("#6D0FF2", "#B99AD9","#ffecf2",
- "#A65300", "#FFB808","#FFFFAD",
- "#007D30", "#00FF65", "#C4FFDB")
-
-testing_results |>
-  filter(type == "marginal", normalization == "DESeq2-asinh", lag== 1, method=="mirror") |>
-  mutate(
-    prop_nonnull = glue("{100 * prop_nonnull}% nonnull"),
-    signal_B = glue("b = {signal_B}"),
-    baseline_lambda = glue("lambda = {baseline_lambda}"),
-    phylo_alpha = glue("alpha = {phylo_alpha}"),
-    lag = glue("Lag {lag}"),
-    #method = ifelse(method == "avg", "Pre/Post\nt-test", method),
-    #normalization = case_match(normalization, "DESeq2-asinh"),
-    n_taxa = glue("{n_taxa} taxa")
-  ) |>
-  ggplot() +
-  geom_vline(xintercept = 0.2, col = "#E0E0E0", linewidth = 1) +
-  geom_point(aes(fdp, power, shape = signal_B), size = 1.8) +
-  geom_point(aes(fdp, power, shape = signal_B, col = interaction(prop_nonnull, n_taxa, sep = ", ")), size = 1.6, alpha = 0.9) +
-  scale_color_manual(values = pal) +
-  scale_y_continuous(breaks = c(.5, 1)) +
-  scale_x_continuous(breaks = c(0.2, 0.4, 0.6, 0.8)) +
   guides(color = guide_legend(nrow = 3)) +
   facet_grid(normalization + phylo_alpha + signal_B ~ lag + prop_nonnull + reorder(method, fdp)) +
   labs(x = "False Discovery Proportion", y = "Power", col = "Lag", shape = "Signal Strength") +
@@ -255,10 +140,13 @@ testing_results |>
     axis.text = element_text(size = 10),
     strip.text = element_text(size = 14),
     strip.text.y = element_text(angle = 0, size = 14),
-    panel.spacing.y = unit(0.1, "line"),
+    panel.spacing.y = unit(0.5, "line"),
     panel.spacing.x = unit(0.5, "line"),
-    legend.box.margin = margin(r = 80)
-  )
+    legend.justification = c("left", "bottom"),
+    legend.box.background = element_rect(fill = "gray95", colour = "black")
+  ) ->p
+
+tag_facet2(p,hjust = -0.2, vjust=1.1, open="",close="",fontface = 2, size=5)
 
 ggsave(glue("fig2.pdf"), height = 6, width = 10)
 ```
