@@ -1,4 +1,8 @@
-This was forked to peform forecasting with mbtransfer on our humanized mouse data the rest of this markdown is left unchanged 
+This repo was forked for the testing and analysis of mbtransfer
+
+*The original markdown file starts bellow this line*
+
+---
 
 # Microbiome Intervention Analysis
 
